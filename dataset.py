@@ -25,6 +25,8 @@ def load_dataset(dataset:str):
         data = load_email_eu()
     elif dataset=='askubuntu':
         data = load_askubuntu()
+    elif dataset=='steemit':
+        data = load_steemit()
     return data
 
 def load_reddit_title():
@@ -321,3 +323,19 @@ def load_askubuntu():
     print(f"Generated {len(temporal_graphs)} daily snapshots.")
     
     return temporal_graphs
+
+def load_steemit():
+    num_snap = 26
+    num_nodes = 14814
+    snapshots = []
+    constant = Constant()
+    for i in range(num_snap):
+        d = Data()
+        d.num_nodes = num_nodes
+        d.edge_index = torch.load(f'steemit-t3gnn-data/{i}_edge_index.pt')
+        if preprocess=='constant':
+            d = constant(d)
+        else:
+            d.x = torch.load(f'steemit-t3gnn-data/{i}_x.pt')
+        snapshots.append(d)
+    return snapshots
