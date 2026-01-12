@@ -24,6 +24,10 @@ dataset_dim = {
     'email-eu': {
         'input_dim': 1,
         'hidden_dim': 128
+    },
+    'steemit': {
+        'input_dim': 1,
+        'hidden_dim': 128
     }
 }
 

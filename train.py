@@ -15,8 +15,8 @@ def main():
     parser = argparse.ArgumentParser(description='Process some parameters.')
 
     # Add --dataset argument with choices
-    parser.add_argument('--dataset', type=str, choices=['bitcoinotc', 'reddit-title','email-eu'], required=True,
-                        help='Choose the dataset from: [bitcoinotc, reddit-title, email-eu]')
+    parser.add_argument('--dataset', type=str, choices=['bitcoinotc', 'reddit-title','email-eu', 'steemit'], required=True,
+                        help='Choose the dataset from: [bitcoinotc, reddit-title, email-eu, steemit]')
 
     # Add --model argument with choices
     parser.add_argument('--model', type=str, choices=['evolvegcn', 'gcrngru', 'roland'], required=True,

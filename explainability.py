@@ -1,6 +1,6 @@
 from dataset import load_dataset
 from models import load_trained_model
-from train_models import train_val_test_split
+from train_models import get_split_points, train_val_test_split
 import copy
 
 from xaimodels import PGExplainer, EdgeGNNExplainer, LastSnapshotExplainer, KHopSubgraphExplainer, GNNExplainer
@@ -10,7 +10,6 @@ from torch_geometric.explain.metric import fidelity, characterization_score
 from torch_geometric.data import Data
 import time
 from torch_geometric.utils import negative_sampling, k_hop_subgraph, erdos_renyi_graph, to_networkx
-from train_models import train_val_test_split, dataset_split_point
 import captum
 
 import torch
@@ -123,17 +122,18 @@ def explain_eval_fid(model_str, dataset_str, xai_str, edges_per_snap = 50, time_
         threshold_config = threshold_config
     )
 
-    train_data, val_data, test_data = train_val_test_split(data, dataset_str)
+    split_points = get_split_points(len(data), model_str)
+    train_data, val_data, test_data = train_val_test_split(data, model_str)
     test_explain = sample_edges_to_explain(test_data, edges_per_snap=edges_per_snap)
         
-    window_snap = int((dataset_split_point[dataset_str]['test_split'] * time_window_percentage) / 100)
+    window_snap = int((split_points['test_split'] * time_window_percentage) / 100)
 
     neg_fids = []
     for i in range(len(test_explain)):
         edge_to_explain = copy.deepcopy(test_explain[i])
         #Candidate events are all the ones in the time window before the target event
         #The window size is specified using time_window_percentage parameter
-        i_current = dataset_split_point[dataset_str]['val_split'] + i
+        i_current = split_points['val_split'] + i
         first_snap = i_current - window_snap if i_current - window_snap >= 0 else 0
         first_snap = 0 if xai_str == 'last' else first_snap
         snap_to_consider = data[first_snap:i_current]
@@ -245,11 +245,12 @@ def eval_pos_explain(model_str, dataset_str, xai_str, edges_per_snap = 50, time_
         threshold_config = threshold_config
     )
 
-    train_data, val_data, test_data = train_val_test_split(data, dataset_str)
+    split_points = get_split_points(len(data), model_str)
+    train_data, val_data, test_data = train_val_test_split(data, model_str)
     test_explain = sample_pos_edges_to_explain(test_data, edges_per_snap=edges_per_snap) #only positive edges
         
 
-    window_snap = int((dataset_split_point[dataset_str]['test_split'] * time_window_percentage) / 100)
+    window_snap = int((split_points['test_split'] * time_window_percentage) / 100)
 
     cohs = []
     recs = []
@@ -259,7 +260,7 @@ def eval_pos_explain(model_str, dataset_str, xai_str, edges_per_snap = 50, time_
     num_recips = 0
     for i in range(len(test_explain)):
         edge_to_explain = copy.deepcopy(test_explain[i])
-        i_current = dataset_split_point[dataset_str]['val_split'] + i
+        i_current = split_points['val_split'] + i
         first_snap = i_current - window_snap if i_current - window_snap >= 0 else 0
         first_snap = 0 if xai_str == 'last' else first_snap
         snap_to_consider = data[first_snap:i_current]
@@ -486,10 +487,11 @@ def explain_case_study(model_str, dataset_str, xai_str, time_window_percentage=1
         threshold_config = threshold_config
     )
 
-    train_data, val_data, test_data = train_val_test_split(data, dataset_str)
+    split_points = get_split_points(len(data), model_str)
+    train_data, val_data, test_data = train_val_test_split(data, model_str)
     edge_to_explain, i_current = load_case_study_edges(dataset_str)
 
-    window_snap = int((dataset_split_point[dataset_str]['test_split'] * time_window_percentage) / 100)
+    window_snap = int((split_points['test_split'] * time_window_percentage) / 100)
 
     pos_fids = []
     neg_fids = []
