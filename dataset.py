@@ -324,7 +324,7 @@ def load_askubuntu():
     
     return temporal_graphs
 
-def load_steemit():
+def load_steemit(preprocess='constant'):
     num_snap = 26
     num_nodes = 14814
     snapshots = []
@@ -332,10 +332,10 @@ def load_steemit():
     for i in range(num_snap):
         d = Data()
         d.num_nodes = num_nodes
-        d.edge_index = torch.load(f'steemit-t3gnn-data/{i}_edge_index.pt')
+        d.edge_index = torch.load(f'dataset/{i}_edge_index.pt')
         if preprocess=='constant':
             d = constant(d)
         else:
-            d.x = torch.load(f'steemit-t3gnn-data/{i}_x.pt')
+            d.x = torch.load(f'dataset/{i}_x.pt')
         snapshots.append(d)
     return snapshots
