@@ -12,28 +12,27 @@ import copy
 import numpy as np
 import random
 
-dataset_split_point = {
-    'bitcoinotc': {
-        'train_split': 95,
-        'val_split': 95+14,
-        'test_split': 95+14+28
-    },
-    'reddit-title':{
-        'train_split': 122,
-        'val_split': 122+18,
-        'test_split': 122+18+34
-    },
-    'email-eu':{
-        'train_split': 361,
-        'val_split': 361+52,
-        'test_split': 361+52+104
-    }
-}
+def get_split_points(num_snapshots, model_str):
+    if model_str in {'evolvegcn', 'gcrngru'}:
+        train_ratio, val_ratio = 0.8, 0.1
+    else:
+        train_ratio, val_ratio = 0.85, 0.05
 
-def train_val_test_split(dataset, dataset_str):
-    train_split = dataset_split_point[dataset_str]['train_split']
-    val_split = dataset_split_point[dataset_str]['val_split']
-    test_split = dataset_split_point[dataset_str]['test_split']
+    train_split = int(num_snapshots * train_ratio)
+    val_split = train_split + int(num_snapshots * val_ratio)
+    test_split = num_snapshots
+
+    return {
+        'train_split': train_split,
+        'val_split': val_split,
+        'test_split': test_split,
+    }
+
+def train_val_test_split(dataset, model_str):
+    split_points = get_split_points(len(dataset), model_str)
+    train_split = split_points['train_split']
+    val_split = split_points['val_split']
+    test_split = split_points['test_split']
 
     train_data = dataset[:train_split]
     val_data = dataset[train_split:val_split]
@@ -45,7 +44,8 @@ def train_val_test_split(dataset, dataset_str):
 lrs = {
     'bitcoinotc': 0.01,
     'reddit-title': 0.085,
-    'email-eu': 1e-3
+    'email-eu': 1e-3,
+    'steemit': 1e-3
 }
 
 def train_evolvegcn(model_str, dataset_str, device='cpu'):
@@ -54,7 +54,8 @@ def train_evolvegcn(model_str, dataset_str, device='cpu'):
     """
     evo = load_model(model_str, dataset_str)
     dataset = load_dataset(dataset_str)
-    snapshots, _, _ = train_val_test_split(dataset, dataset_str)
+    split_points = get_split_points(len(dataset), model_str)
+    snapshots, _, _ = train_val_test_split(dataset, model_str)
     num_snap = len(snapshots) 
     
     evo_avgpr_test_singles = []
@@ -71,7 +72,7 @@ def train_evolvegcn(model_str, dataset_str, device='cpu'):
         num_current_edges = len(snapshot.edge_index[0])
         transform = RandomLinkSplit(num_val=0.0,num_test=0.25)
         train_data, _, val_data = transform(snapshot)
-        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[dataset_split_point[dataset_str]['train_split']]
+        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[split_points['train_split']]
         future_neg_edge_index = negative_sampling(
             edge_index=test_data.edge_index, #positive edges
             num_nodes=test_data.num_nodes, # number of nodes
@@ -103,7 +104,8 @@ def train_gcrngru(model_str, dataset_str, device='cpu'):
     """
     gcgru = load_model(model_str, dataset_str)
     dataset = load_dataset(dataset_str)
-    snapshots, _, _ = train_val_test_split(dataset, dataset_str)
+    split_points = get_split_points(len(dataset), model_str)
+    snapshots, _, _ = train_val_test_split(dataset, model_str)
     num_snap = len(snapshots) 
     
     gcgru_avgpr_test_singles = []
@@ -119,7 +121,7 @@ def train_gcrngru(model_str, dataset_str, device='cpu'):
         num_current_edges = len(snapshot.edge_index[0])
         transform = RandomLinkSplit(num_val=0.0,num_test=0.25)
         train_data, _, val_data = transform(snapshot)
-        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[dataset_split_point[dataset_str]['train_split']]
+        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[split_points['train_split']]
         future_neg_edge_index = negative_sampling(
             edge_index=test_data.edge_index, #positive edges
             num_nodes=test_data.num_nodes, # number of nodes
@@ -152,7 +154,8 @@ def train_roland(model_str, dataset_str, device='cpu'):
 
     roland = load_model(model_str, dataset_str)
     dataset = load_dataset(dataset_str)
-    snapshots, _, _ = train_val_test_split(dataset, dataset_str)
+    split_points = get_split_points(len(dataset), model_str)
+    snapshots, _, _ = train_val_test_split(dataset, model_str)
     
     avgpr_test_singles = []
     
@@ -175,7 +178,7 @@ def train_roland(model_str, dataset_str, device='cpu'):
         num_current_edges = len(snapshot.edge_index[0])
         transform = RandomLinkSplit(num_val=0.0,num_test=0.25)
         train_data, _, val_data = transform(snapshot)
-        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[dataset_split_point[dataset_str]['train_split']]
+        test_data = copy.deepcopy(snapshots[i+1]) if i!=(num_snap-1) else dataset[split_points['train_split']]
         future_neg_edge_index = negative_sampling(
             edge_index=test_data.edge_index, #positive edges
             num_nodes=test_data.num_nodes, # number of nodes
@@ -205,7 +208,8 @@ def train_roland(model_str, dataset_str, device='cpu'):
 epochs = {
     'bitcoinotc': 500,
     'reddit-title': 500,
-    'email-eu': 1000
+    'email-eu': 1000,
+    'steemit': 1000
 }
 
 def ev_train_single_snapshot(model, data, dataset_str, train_data, val_data, test_data,\
@@ -335,10 +339,10 @@ def roland_test_live(model, previous_snap, test_data, data, isnap, device='cpu')
     avgpr_score_link = average_precision_score(label_link, pred_cont_link)
     return avgpr_score_link
 
-def ev_test_streaming(model, dataset, dataset_str, device='cpu'):
+def ev_test_streaming(model, dataset, model_str, device='cpu'):
     model.eval()
     model.to(device)
-    _, val_data, test_data = train_val_test_split(dataset, dataset_str)
+    _, val_data, test_data = train_val_test_split(dataset, model_str)
     for i in range(len(val_data)):
         snap = copy.deepcopy(val_data[i])
         if snap.x is None:
@@ -375,10 +379,10 @@ def ev_test_streaming(model, dataset, dataset_str, device='cpu'):
     print(f'AUPRC over test set: {sum(avgpr_test)/len(test_data)}')
     return avgpr_test
 
-def roland_test_streaming(model, dataset, dataset_str, device='cpu'):
+def roland_test_streaming(model, dataset, model_str, device='cpu'):
     model.eval()
     model.to(device)
-    _, val_data, test_data = train_val_test_split(dataset, dataset_str)
+    _, val_data, test_data = train_val_test_split(dataset, model_str)
     for i in range(len(val_data)):
         snap = copy.deepcopy(val_data[i])
         if snap.x is None:
